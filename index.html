@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vessel's Schedules</title>
+  <style>
+    :root {
+      --bg:#0b1020; --card:#121a33; --muted:#93a3b8; --text:#e6edf7; --line:#1c274b;
+      --chip:#1f2a4d; --chip-text:#c8d2e5;
+    }
+    body { background:var(--bg); color:var(--text); font-family: system-ui, sans-serif; margin:0; }
+    header { padding:16px; border-bottom:1px solid var(--line); background:#111a35; position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:12px; }
+    h1 { margin:0; font-size:20px; }
+    .grow { flex:1 1 auto; }
+    main { padding:16px; display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:16px; }
+    .card { background:var(--card); border-radius:14px; padding:14px; border:1px solid var(--line); box-shadow:0 8px 20px rgba(0,0,0,.3); display:flex; flex-direction:column; gap:10px; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .card-title { display:flex; align-items:center; gap:8px; }
+    .card-title img.flag { height:1em; width:auto; border-radius:2px; box-shadow:0 0 2px rgba(0,0,0,.5); }
+    .card h2 { margin:0; font-size:18px; }
+    img.card-img { width:100%; border-radius:10px; display:block; aspect-ratio:16/9; object-fit:cover; background:#0f1730; }
+
+    .map { background:#0f1730; border:1px solid var(--line); border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:8px; }
+    .map img { width:100%; border-radius:8px; aspect-ratio:540/243; object-fit:cover; }
+    .muted { color:var(--muted); }
+    input,button,.btn { padding:8px 10px; border-radius:8px; border:1px solid #233162; background:#0f1730; color:var(--text); text-decoration:none; display:inline-block; }
+    .btn { cursor:pointer; transition:background .2s; font-weight:500; }
+    .btn:hover { background:#18244d; }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-left:8px; }
+
+    .row { display:flex; gap:8px; align-items:center; }
+    .info { display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:13px; }
+    .info div span { color:var(--muted); }
+
+    .msg { background:#0f1730; border:1px solid var(--line); border-radius:10px; padding:10px; white-space:pre-wrap; }
+
+    .auth { display:flex; align-items:center; gap:8px; }
+    .avatar { width:28px; height:28px; border-radius:50%; display:none; }
+    .hidden { display:none !important; }
+
+    /* --- VesselFinder Spoiler --- */
+    .vf-header {
+      cursor: pointer;
+      padding: 8px 12px;
+      background: #18244d;
+      border-radius: 8px;
+      border:1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .vf-header span { font-size:14px; color:var(--muted); }
+    .vf-chevron { transition: transform .25s ease; }
+
+    .vf-spoiler {
+      max-height:0;
+      opacity:0;
+      overflow:hidden;
+      transition:max-height .35s ease, opacity .25s ease;
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:10px;
+      margin-top:8px;
+    }
+    .vf-spoiler.open { max-height:600px; opacity:1; }
+
+    .vf-content { padding:10px; font-size:13px; }
+    .vf-section {
+      margin:8px 0 4px;
+      padding-bottom:4px;
+      border-bottom:1px solid var(--line);
+      color:#cdd8ff;
+      font-weight:bold;
+    }
+    .vf-row {
+      display:grid;
+      grid-template-columns:140px 1fr;
+      margin-bottom:4px;
+      gap:6px;
+    }
+    .vf-row span { color:var(--muted); }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Vessel's Schedules</h1>
+  <div class="toolbar grow">
+    <input id="q" type="search" placeholder="Search by vessel or port..." />
+    <button id="refresh">Refresh</button>
+  </div>
+
+  <div class="auth">
+    <img id="avatar" class="avatar" alt="">
+    <span id="who" class="muted"></span>
+    <button id="signinBtn" class="btn">Sign in</button>
+    <button id="signoutBtn" class="btn hidden">Sign out</button>
+  </div>
+</header>
+
+<main id="grid">Loading...</main>
+
+<script type="module">
+
+ 
+function flagImg(code){
+  if (!code) return "";
+  return `<img src="https://static.vesselfinder.net/images/flags/4x3/${code}.svg"
+        style="height:14px;vertical-align:middle;margin-right:6px;">`;
+};
+
+
+function formatUnix(ts){
+  if (!ts || isNaN(ts)) return "—";
+  const d = new Date(ts * 1000);
+  return d.toLocaleString("en-GB", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+};
+
+function renderFlag(code){
+  if (!code) return "";
+  return `<img src="https://static.vesselfinder.net/images/flags/4x3/${code.toLowerCase()}.svg" 
+              style="height:14px;vertical-align:middle;margin-right:6px;border-radius:2px;">`;
+};
+
+
+/* FIREBASE */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider,
+  signInWithPopup, getRedirectResult,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBrbsKzR7RkPbnMHvWdFZ-5W_FzkwoPVp4",
+  authDomain: "scheduleproject-861da.firebaseapp.com",
+  databaseURL: "https://scheduleproject-861da-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "scheduleproject-861da",
+  appId: "YOUR_REAL_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+/* DOM REFS */
+const $ = id => document.getElementById(id);
+const grid = $("grid"), q = $("q");
+const signinBtn = $("signinBtn"), signoutBtn = $("signoutBtn");
+const who = $("who"), avatar = $("avatar");
+
+/* UTILS */
+function getImage(v){
+  if (v.image_url && /^https?:/.test(v.image_url)) return v.image_url;
+  if (v.vslImage   && /^https?:/.test(v.vslImage)) return v.vslImage;
+  return null;
+}
+function getMsg(v){ return v.msgToAllParty || ""; }
+
+function convertMinutesTail(min){
+  const n=parseFloat(min); if(isNaN(n))return null;
+  return Math.round((n/6)*1000);
+}
+function latCodeToCardinal(code){ return String(code)==='1'?'S':'N'; }
+function lonCodeToCardinal(code){ return String(code)==='1'?'W':'E'; }
+function signFor(card){ return (card==='S'||card==='W')?'-':''; }
+
+function mapUrlFromReport(v,{z=5,size='540,243',lang='en_US'}={}){
+  const latDeg=v.latDegree?.toString().trim();
+  const lonDeg=v.lonDegree?.toString().trim();
+  const latTail=convertMinutesTail(v.latMinutes);
+  const lonTail=convertMinutesTail(v.lonMinutes);
+  if(!latDeg||!lonDeg||latTail===null||lonTail===null) return null;
+
+  const latCard=latCodeToCardinal(v.latCardinalPoints);
+  const lonCard=lonCodeToCardinal(v.lonCardinalPoints);
+  const lat=`${signFor(latCard)}${latDeg}.${latTail}`;
+  const lon=`${signFor(lonCard)}${lonDeg}.${lonTail}`;
+
+  return `https://static-maps.yandex.ru/1.x/?lang=${lang}&ll=${lon},${lat}&size=${size}&z=${z}&l=map&pt=${lon},${lat},pm2rdl1`;
+}
+
+/* NAV-STATUS */
+const navStatus = {
+  0:"Under way using engine",
+  1:"At anchor",
+  2:"Not under command",
+  3:"Restricted manoeuvrability",
+  4:"Constrained by draught",
+  5:"Moored",
+  6:"Aground",
+  7:"Engaged in fishing",
+  8:"Under way sailing",
+  13:"AIS-SART active",
+  14:"AIS-SART test",
+  15:"Undefined"
+};
+
+/* RENDER */
+function render(list){
+  const needle=(q.value||"").toLowerCase();
+  const filtered=list.filter(v=>{
+    return (v.ship_name+v.name+v.fromPort+v.toPort).toLowerCase().includes(needle);
+  });
+
+  if(!filtered.length){
+    grid.innerHTML=`<div class="muted">No vessels found</div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(v=>{
+    const img=getImage(v);
+    const msg=getMsg(v);
+    const title=v.ship_name||v.name;
+    const mapUrl=mapUrlFromReport(v,{z:5,size:'540,243'});
+    const flag = v.flag && /^http/.test(v.flag) ? v.flag : null;
+
+    return `
+    <article class="card">
+
+      ${img?`<img class="card-img" src="${img}">`:''}
+
+<div class="card-header">
+    <div class="card-title">
+        <h2>${title}</h2>
+        ${flag ? `<img class="flag" src="${flag}">` : ``}
+    </div>
+
+    <a class="btn"
+       href="${
+            v.vslFinder 
+            || (v.imo ? `https://www.vesselfinder.com/?imo=${v.imo}` : '') 
+            || (v.mmsi ? `https://www.vesselfinder.com/?mmsi=${v.mmsi}` : '#')
+       }"
+       target="_blank"
+       rel="noopener noreferrer">
+       📍 Position
+    </a>
+</div>
+
+      <div class="info">
+        <div><span>Voyage:</span> ${v.voyageNumber||'—'}</div>
+        <div><span>Date:</span> ${v.dateOfReport||'—'}</div>
+        <div><span>From:</span> ${v.fromPort||'—'}</div>
+        <div><span>To:</span> ${v.toPort||'—'}</div>
+        <div><span>Draft Fwd:</span> ${v.draftFwd||'—'}</div>
+        <div><span>Draft Aft:</span> ${v.draftAft||'—'}</div>
+        <div><span>Speed:</span> ${v.speedOverGround||'—'} kn</div>
+        <div><span>Cargo:</span> ${v.cargoQty||'—'}</div>
+      </div>
+
+      <div class="map">
+        ${mapUrl?`<img src="${mapUrl}">`:`<div class="muted">No coordinates</div>`}
+      </div>
+
+      <div class="msg">${msg.replace(/</g,"&lt;")}</div>
+
+      <div class="vf-header" onclick="toggleVF(this)">
+        <span>VesselFinder Data</span>
+        <span class="vf-chevron">▼</span>
+      </div>
+
+      <div class="vf-spoiler" id="vf-${v.mmsi}">
+        <div class="vf-content" id="vf-content-${v.mmsi}">
+          Loading VesselFinder data...
+        </div>
+      </div>
+
+    </article>`;
+  }).join("");
+}
+
+/* SPOILER SYSTEM */
+let lastOpen = null;
+
+window.toggleVF = async function(el){
+  const box = el.nextElementSibling;
+
+  if(lastOpen && lastOpen!==box){
+    lastOpen.classList.remove("open");
+  }
+
+  box.classList.toggle("open");
+  lastOpen = box.classList.contains("open") ? box : null;
+
+  if(box.dataset.loaded) return;
+
+  const mmsi = box.id.replace("vf-","");
+  const target = document.getElementById(`vf-content-${mmsi}`);
+
+  const url = `http://ops.shipsnavo.de/vf-proxy.php?mmsi=${mmsi}`;
+  const data = await fetch(url).then(r=>r.json()).catch(()=>null);
+
+  if(!data){
+    target.innerHTML=`<div class="muted">Proxy error</div>`;
+    return;
+  }
+
+  const {weather,click,vi2} = data;
+
+  box.dataset.loaded="1";
+
+// LAST + NEXT PORT LOGIC
+const lastPortName = vi2?.rpdna || "—";
+const lastPortCountry = vi2?.rpda2 || null;
+
+let nextPortText = "—";
+let nextPortCountry = null;
+
+if (vi2?.npdn) {
+    nextPortText = vi2.npdn;
+    nextPortCountry = vi2.rpda2;
+} else if (click?.dest) {
+    nextPortText = click.dest;
+    nextPortCountry = click.dest.substring(0, 2).toLowerCase();
+}
+
+function flagImg(code){
+  if (!code) return "";
+  return `<img src="https://static.vesselfinder.net/images/flags/4x3/${code}.svg"
+        style="height:14px;vertical-align:middle;margin-right:6px;">`;
+}
+
+target.innerHTML = `
+    <div class="vf-section">Navigation</div>
+    <div class="vf-row"><span>Status:</span> ${navStatus[click?.[".ns"]]||"—"}</div>
+    <div class="vf-row"><span>Speed:</span> ${click?.ss||"—"} kn</div>
+    <div class="vf-row"><span>Course:</span> ${click?.cu||"—"}°</div>
+    <div class="vf-row"><span>Heading:</span> ${click?.aw||"—"}°</div>
+
+<div class="vf-section">Weather</div>
+
+<div class="vf-row">
+  <span>Wind:</span>
+  💨 ${weather?.wsp ?? "—"} m/s
+</div>
+
+<div class="vf-row">
+  <span>Wind Dir:</span>
+  🧭 ${weather?.wdir ?? "—"}°
+</div>
+
+<div class="vf-row">
+  <span>Temp:</span>
+  🌡️ ${weather?.temp ?? "—"} °C
+</div>
+
+<div class="vf-row">
+  <span>Wave:</span>
+  🌊 ${weather?.htsgw ?? "—"} m
+</div>
+
+
+    <div class="vf-section">Voyage (VF vi2)</div>
+ <div class="vf-row">
+  <span>Last Port:</span>
+  <div style="display:inline-flex;align-items:center;gap:6px;">
+    ${flagImg(lastPortCountry)}
+    <span>${lastPortName}</span>
+  </div>
+</div>
+
+<div class="vf-row">
+  <span>Next Port:</span>
+  <div style="display:inline-flex;align-items:center;gap:6px;">
+    ${flagImg(nextPortCountry)}
+    <span>${nextPortText}</span>
+  </div>
+</div>
+
+    <div class="vf-row"><span>ATD:</span> ${formatUnix(vi2?.rpdatd)}</div>
+    <div class="vf-row"><span>ETA:</span> ${formatUnix(vi2?.npe)}</div>
+
+    <div class="vf-section">Static (VF click)</div>
+    <div class="vf-row"><span>IMO:</span> ${click?.imo||"—"}</div>
+    <div class="vf-row"><span>GT:</span> ${click?.gt||"—"}</div>
+    <div class="vf-row"><span>DWT:</span> ${click?.dw||"—"}</div>
+    <div class="vf-row"><span>Type:</span> ${click?.type||"—"}</div>
+    <div class="vf-row"><span>Flag:</span> ${click?.country||"—"}</div>
+    <div class="vf-row"><span>Dest:</span> ${click?.dest||"—"}</div>
+`;
+
+};
+
+/* LOAD INTERNAL DB */
+async function loadData(){
+  grid.textContent="Loading...";
+
+  const user = auth.currentUser;
+  if(!user){
+    grid.innerHTML=`<div class="card"><h2>Please sign in</h2></div>`;
+    return;
+  }
+
+  const token = await user.getIdToken();
+  const url = firebaseConfig.databaseURL+"/ships.json?auth="+token;
+  const res = await fetch(url);
+  const data = await res.json();
+  const list = Object.values(data||{});
+  render(list);
+}
+
+/* AUTH */
+signinBtn.onclick = ()=>signInWithPopup(auth,provider);
+signoutBtn.onclick = ()=>signOut(auth);
+q.oninput = ()=>loadData();
+refresh.onclick = ()=>loadData();
+
+onAuthStateChanged(auth,user=>{
+  if(user){
+    who.textContent=user.displayName;
+    avatar.src=user.photoURL;
+    avatar.style.display="inline-block";
+    signinBtn.classList.add("hidden");
+    signoutBtn.classList.remove("hidden");
+    loadData();
+  }else{
+    signinBtn.classList.remove("hidden");
+    signoutBtn.classList.add("hidden");
+    who.textContent="";
+    avatar.style.display="none";
+    loadData();
+  }
+});
+</script>
+</body>
+</html>
