@@ -24,7 +24,7 @@
     .map { background:#0f1730; border:1px solid var(--line); border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:8px; }
     .map img { width:100%; border-radius:8px; aspect-ratio:540/243; object-fit:cover; }
     .muted { color:var(--muted); }
-    input,button,.btn { padding:8px 10px; border-radius:8px; border:1px solid #233162; background:#0f1730; color:var(--text); text-decoration:none; display:inline-block; }
+    input,textarea,button,.btn { padding:8px 10px; border-radius:8px; border:1px solid #233162; background:#0f1730; color:var(--text); text-decoration:none; display:inline-block; font-family:inherit; }
     .btn { cursor:pointer; transition:background .2s; font-weight:500; }
     .btn:hover { background:#18244d; }
     .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-left:8px; }
@@ -80,6 +80,27 @@
       gap:6px;
     }
     .vf-row span { color:var(--muted); }
+
+    .ops {
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .ops-row {
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+    }
+    .ops textarea {
+      flex:1 1 auto;
+      min-height:60px;
+      resize:vertical;
+    }
+    .ops-status {
+      font-size:12px;
+      color:var(--muted);
+      min-height:16px;
+    }
   </style>
 </head>
 
@@ -263,6 +284,15 @@ function render(list){
 
       <div class="msg">${msg.replace(/</g,"&lt;")}</div>
 
+      <div class="ops">
+        <div class="muted">Planned Ops</div>
+        <div class="ops-row">
+          <textarea data-id="${v.id}" class="planned-ops" placeholder="Enter planned operations...">${v.plannedOps||''}</textarea>
+          <button class="btn save-ops" data-id="${v.id}">Save</button>
+        </div>
+        <div class="ops-status" data-id="${v.id}"></div>
+      </div>
+
       <div class="vf-header" onclick="toggleVF(this)">
         <span>VesselFinder Data</span>
         <span class="vf-chevron">▼</span>
@@ -404,8 +434,33 @@ async function loadData(){
   const url = firebaseConfig.databaseURL+"/ships.json?auth="+token;
   const res = await fetch(url);
   const data = await res.json();
-  const list = Object.values(data||{});
+  const list = Object.entries(data||{}).map(([id,ship])=>({ id, ...ship }));
   render(list);
+}
+
+async function savePlannedOps(id,value){
+  const status = grid.querySelector(`.ops-status[data-id="${id}"]`);
+  if(!auth.currentUser){
+    status.textContent="Please sign in to save.";
+    return;
+  }
+
+  status.textContent="Saving...";
+  try{
+    const token = await auth.currentUser.getIdToken();
+    const url = `${firebaseConfig.databaseURL}/ships/${id}.json?auth=${token}`;
+    const res = await fetch(url,{
+      method:"PATCH",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({plannedOps:value})
+    });
+
+    if(!res.ok) throw new Error("Save failed");
+    status.textContent="Saved.";
+  }catch(err){
+    console.error(err);
+    status.textContent="Error saving.";
+  }
 }
 
 /* AUTH */
@@ -413,6 +468,12 @@ signinBtn.onclick = ()=>signInWithPopup(auth,provider);
 signoutBtn.onclick = ()=>signOut(auth);
 q.oninput = ()=>loadData();
 refresh.onclick = ()=>loadData();
+grid.addEventListener("click",e=>{
+  if(!e.target.classList.contains("save-ops")) return;
+  const id = e.target.dataset.id;
+  const textarea = grid.querySelector(`textarea[data-id="${id}"]`);
+  savePlannedOps(id, textarea.value.trim());
+});
 
 onAuthStateChanged(auth,user=>{
   if(user){
