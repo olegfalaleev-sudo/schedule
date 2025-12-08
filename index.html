@@ -194,6 +194,11 @@ function latCodeToCardinal(code){ return String(code)==='1'?'S':'N'; }
 function lonCodeToCardinal(code){ return String(code)==='1'?'W':'E'; }
 function signFor(card){ return (card==='S'||card==='W')?'-':''; }
 
+function autoGrow(el){
+  el.style.height="auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 function mapUrlFromReport(v,{z=5,size='540,243',lang='en_US'}={}){
   const latDeg=v.latDegree?.toString().trim();
   const lonDeg=v.lonDegree?.toString().trim();
@@ -306,6 +311,11 @@ function render(list){
 
     </article>`;
   }).join("");
+
+  grid.querySelectorAll("textarea.auto-grow").forEach(el=>{
+    autoGrow(el);
+    el.addEventListener("input",()=>autoGrow(el));
+  });
 }
 
 /* SPOILER SYSTEM */
