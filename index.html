@@ -33,7 +33,7 @@
     .info { display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:13px; }
     .info div span { color:var(--muted); }
 
-    .msg { background:#0f1730; border:1px solid var(--line); border-radius:10px; padding:10px; white-space:pre-wrap; }
+    .msg textarea { width:100%; box-sizing:border-box; min-height:60px; resize:vertical; }
 
     .auth { display:flex; align-items:center; gap:8px; }
     .avatar { width:28px; height:28px; border-radius:50%; display:none; }
@@ -262,8 +262,8 @@ function render(list){
 
     <a class="btn"
        href="${
-            v.vslFinder 
-            || (v.imo ? `https://www.vesselfinder.com/?imo=${v.imo}` : '') 
+            v.vslFinder
+            || (v.imo ? `https://www.vesselfinder.com/?imo=${v.imo}` : '')
             || (v.mmsi ? `https://www.vesselfinder.com/?mmsi=${v.mmsi}` : '#')
        }"
        target="_blank"
@@ -287,12 +287,15 @@ function render(list){
         ${mapUrl?`<img src="${mapUrl}">`:`<div class="muted">No coordinates</div>`}
       </div>
 
-      <div class="msg">${msg.replace(/</g,"&lt;")}</div>
+      <div class="ops">
+        <div class="muted">Message to all parties</div>
+        <textarea class="auto-grow" data-id="${v.id}" data-field="msgToAllParty" placeholder="Enter message...">${msg.replace(/</g,"&lt;")}</textarea>
+      </div>
 
       <div class="ops">
         <div class="muted">Planned Ops</div>
         <div class="ops-row">
-          <textarea data-id="${v.id}" class="planned-ops" placeholder="Enter planned operations...">${v.plannedOps||''}</textarea>
+          <textarea data-id="${v.id}" data-field="plannedOps" class="planned-ops auto-grow" placeholder="Enter planned operations...">${v.plannedOps||''}</textarea>
           <button class="btn save-ops" data-id="${v.id}">Save</button>
         </div>
         <div class="ops-status" data-id="${v.id}"></div>
@@ -448,12 +451,20 @@ async function loadData(){
   render(list);
 }
 
-async function savePlannedOps(id,value){
+async function saveVesselFields(id){
   const status = grid.querySelector(`.ops-status[data-id="${id}"]`);
   if(!auth.currentUser){
     status.textContent="Please sign in to save.";
     return;
   }
+
+  const msgInput = grid.querySelector(`textarea[data-field="msgToAllParty"][data-id="${id}"]`);
+  const opsInput = grid.querySelector(`textarea[data-field="plannedOps"][data-id="${id}"]`);
+
+  const payload = {
+    msgToAllParty: msgInput?.value ?? "",
+    plannedOps: opsInput?.value ?? "",
+  };
 
   status.textContent="Saving...";
   try{
@@ -462,7 +473,7 @@ async function savePlannedOps(id,value){
     const res = await fetch(url,{
       method:"PATCH",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({plannedOps:value})
+      body:JSON.stringify(payload)
     });
 
     if(!res.ok) throw new Error("Save failed");
@@ -481,8 +492,7 @@ refresh.onclick = ()=>loadData();
 grid.addEventListener("click",e=>{
   if(!e.target.classList.contains("save-ops")) return;
   const id = e.target.dataset.id;
-  const textarea = grid.querySelector(`textarea[data-id="${id}"]`);
-  savePlannedOps(id, textarea.value.trim());
+  saveVesselFields(id);
 });
 
 onAuthStateChanged(auth,user=>{
