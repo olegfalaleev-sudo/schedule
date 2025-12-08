@@ -287,17 +287,15 @@ function render(list){
         ${mapUrl?`<img src="${mapUrl}">`:`<div class="muted">No coordinates</div>`}
       </div>
 
+      <div class="msg">${msg.replace(/</g,"&lt;")}</div>
+
       <div class="ops">
         <div class="muted">Planned Ops</div>
-        <textarea data-id="${v.id}" data-field="plannedOps" class="planned-ops auto-grow" placeholder="Enter planned operations...">${v.plannedOps||''}</textarea>
-
-        <div class="muted">Message</div>
-        <textarea data-id="${v.id}" data-field="msgToAllParty" class="msg-ops auto-grow" placeholder="Enter message to all parties...">${msg.replace(/</g,"&lt;")}</textarea>
-
         <div class="ops-row">
+          <textarea data-id="${v.id}" class="planned-ops" placeholder="Enter planned operations...">${v.plannedOps||''}</textarea>
           <button class="btn save-ops" data-id="${v.id}">Save</button>
-          <div class="ops-status" data-id="${v.id}"></div>
         </div>
+        <div class="ops-status" data-id="${v.id}"></div>
       </div>
 
       <div class="vf-header" onclick="toggleVF(this)">
@@ -450,15 +448,12 @@ async function loadData(){
   render(list);
 }
 
-async function savePlannedOps(id){
+async function savePlannedOps(id,value){
   const status = grid.querySelector(`.ops-status[data-id="${id}"]`);
   if(!auth.currentUser){
     status.textContent="Please sign in to save.";
     return;
   }
-
-  const planned = grid.querySelector(`textarea[data-id="${id}"][data-field="plannedOps"]`)?.value.trim() || "";
-  const message = grid.querySelector(`textarea[data-id="${id}"][data-field="msgToAllParty"]`)?.value.trim() || "";
 
   status.textContent="Saving...";
   try{
@@ -467,7 +462,7 @@ async function savePlannedOps(id){
     const res = await fetch(url,{
       method:"PATCH",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({plannedOps:planned, msgToAllParty:message})
+      body:JSON.stringify({plannedOps:value})
     });
 
     if(!res.ok) throw new Error("Save failed");
@@ -486,7 +481,8 @@ refresh.onclick = ()=>loadData();
 grid.addEventListener("click",e=>{
   if(!e.target.classList.contains("save-ops")) return;
   const id = e.target.dataset.id;
-  savePlannedOps(id);
+  const textarea = grid.querySelector(`textarea[data-id="${id}"]`);
+  savePlannedOps(id, textarea.value.trim());
 });
 
 onAuthStateChanged(auth,user=>{
