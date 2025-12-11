@@ -4,40 +4,145 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vessel's Schedules</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:#0b1020; --card:#121a33; --muted:#93a3b8; --text:#e6edf7; --line:#1c274b;
-      --chip:#1f2a4d; --chip-text:#c8d2e5;
+      --bg: #0A0F1F;
+      --card: rgba(255, 255, 255, 0.05);
+      --muted: #A9B7D1;
+      --text: #F0F8FF;
+      --line: #3A7DFF;
+      --chip: #1f2a4d;
+      --chip-text: #c8d2e5;
     }
-    body { background:var(--bg); color:var(--text); font-family: system-ui, sans-serif; margin:0; }
-    header { padding:16px; border-bottom:1px solid var(--line); background:#111a35; position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:12px; }
-    h1 { margin:0; font-size:20px; }
-    .grow { flex:1 1 auto; }
-    main { padding:16px; display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:16px; }
-    .card { background:var(--card); border-radius:14px; padding:14px; border:1px solid var(--line); box-shadow:0 8px 20px rgba(0,0,0,.3); display:flex; flex-direction:column; gap:10px; }
-    .card-header { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-    .card-title { display:flex; align-items:center; gap:8px; }
-    .card-title img.flag { height:1em; width:auto; border-radius:2px; box-shadow:0 0 2px rgba(0,0,0,.5); }
-    .card h2 { margin:0; font-size:18px; }
-    img.card-img { width:100%; border-radius:10px; display:block; aspect-ratio:16/9; object-fit:cover; background:#0f1730; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      background-image: radial-gradient(circle at 25% 25%, rgba(58, 125, 255, 0.2), transparent 35%),
+                        radial-gradient(circle at 75% 75%, rgba(58, 125, 255, 0.2), transparent 35%);
+    }
+    #login-page {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .login-card {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 40px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        text-align: center;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+    header {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(11, 15, 31, 0.8);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    h1 { margin: 0; font-size: 20px; }
+    .grow { flex: 1 1 auto; }
+    main {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform 0.2s ease-in-out;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .card-title { display: flex; align-items: center; gap: 8px; }
+    .card-title img.flag { height: 1em; width: auto; border-radius: 2px; box-shadow: 0 0 2px rgba(0,0,0,.5); }
+    .card h2 { margin: 0; font-size: 18px; }
+    img.card-img { width: 100%; border-radius: 10px; display: block; aspect-ratio: 16/9; object-fit: cover; background: #0f1730; }
+    .map { background: #0f1730; border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .map img { width: 100%; border-radius: 8px; aspect-ratio: 540/243; object-fit: cover; }
+    .muted { color: var(--muted); }
+    input, textarea, button, .btn {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #233162;
+      background: #0f1730;
+      color: var(--text);
+      text-decoration: none;
+      display: inline-block;
+      font-family: inherit;
+    }
+    .btn { cursor: pointer; transition: background .2s; font-weight: 500; }
+    .btn:hover { background: var(--line); color: white; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-left: 8px; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .info { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 13px; }
+    .info div span { color: var(--muted); }
+    .msg textarea { width: 100%; box-sizing: border-box; min-height: 60px; resize: vertical; }
+    .auth { display: flex; align-items: center; gap: 8px; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; display: none; }
+    .hidden { display: none !important; }
 
-    .map { background:#0f1730; border:1px solid var(--line); border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:8px; }
-    .map img { width:100%; border-radius:8px; aspect-ratio:540/243; object-fit:cover; }
-    .muted { color:var(--muted); }
-    input,textarea,button,.btn { padding:8px 10px; border-radius:8px; border:1px solid #233162; background:#0f1730; color:var(--text); text-decoration:none; display:inline-block; font-family:inherit; }
-    .btn { cursor:pointer; transition:background .2s; font-weight:500; }
-    .btn:hover { background:#18244d; }
-    .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-left:8px; }
+    /* Burger Menu */
+    .burger-menu {
+        display: none;
+        cursor: pointer;
+    }
+    .burger-menu div {
+        width: 25px;
+        height: 3px;
+        background-color: var(--text);
+        margin: 5px 0;
+        transition: 0.4s;
+    }
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
 
-    .row { display:flex; gap:8px; align-items:center; }
-    .info { display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:13px; }
-    .info div span { color:var(--muted); }
-
-    .msg textarea { width:100%; box-sizing:border-box; min-height:60px; resize:vertical; }
-
-    .auth { display:flex; align-items:center; gap:8px; }
-    .avatar { width:28px; height:28px; border-radius:50%; display:none; }
-    .hidden { display:none !important; }
+    @media (max-width: 768px) {
+        .nav-links {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            background: rgba(11, 15, 31, 0.9);
+            position: absolute;
+            top: 60px;
+            left: 0;
+            padding: 16px 0;
+        }
+        .nav-links.active {
+            display: flex;
+        }
+        .burger-menu {
+            display: block;
+        }
+    }
 
     /* --- VesselFinder Spoiler --- */
     .vf-header {
@@ -45,84 +150,131 @@
       padding: 8px 12px;
       background: #18244d;
       border-radius: 8px;
-      border:1px solid var(--line);
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
+      border: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    .vf-header span { font-size:14px; color:var(--muted); }
+    .vf-header span { font-size: 14px; color: var(--muted); }
     .vf-chevron { transition: transform .25s ease; }
-
     .vf-spoiler {
-      max-height:0;
-      opacity:0;
-      overflow:hidden;
-      transition:max-height .35s ease, opacity .25s ease;
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:10px;
-      margin-top:8px;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height .35s ease, opacity .25s ease;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-top: 8px;
     }
-    .vf-spoiler.open { max-height:600px; opacity:1; }
-
-    .vf-content { padding:10px; font-size:13px; }
+    .vf-spoiler.open { max-height: 600px; opacity: 1; }
+    .vf-content { padding: 10px; font-size: 13px; }
     .vf-section {
-      margin:8px 0 4px;
-      padding-bottom:4px;
-      border-bottom:1px solid var(--line);
-      color:#cdd8ff;
-      font-weight:bold;
+      margin: 8px 0 4px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--line);
+      color: #cdd8ff;
+      font-weight: bold;
     }
     .vf-row {
-      display:grid;
-      grid-template-columns:140px 1fr;
-      margin-bottom:4px;
-      gap:6px;
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      margin-bottom: 4px;
+      gap: 6px;
     }
-    .vf-row span { color:var(--muted); }
-
+    .vf-row span { color: var(--muted); }
     .ops {
-      display:flex;
-      flex-direction:column;
-      gap:6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
     .ops-row {
-      display:flex;
-      gap:8px;
-      align-items:flex-start;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
     }
     .ops textarea {
-      flex:1 1 auto;
-      min-height:60px;
-      resize:vertical;
+      flex: 1 1 auto;
+      min-height: 60px;
+      resize: vertical;
     }
     .ops-status {
-      font-size:12px;
-      color:var(--muted);
-      min-height:16px;
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 16px;
     }
   </style>
 </head>
 
 <body>
-<header>
-  <h1>Vessel's Schedules</h1>
-  <div class="toolbar grow">
-    <input id="q" type="search" placeholder="Search by vessel or port..." />
-    <button id="refresh">Refresh</button>
-  </div>
 
-  <div class="auth">
-    <img id="avatar" class="avatar" alt="">
-    <span id="who" class="muted"></span>
-    <button id="signinBtn" class="btn">Sign in</button>
-    <button id="signoutBtn" class="btn hidden">Sign out</button>
-  </div>
-</header>
+<div id="login-page">
+    <div class="login-card">
+        <h1>Vessel's Schedules</h1>
+        <p>Please sign in to continue</p>
+        <button id="signinBtn" class="btn">Sign in with Google</button>
+    </div>
+</div>
 
-<main id="grid">Loading...</main>
+<div id="app-page" class="hidden">
+    <header>
+        <h1>Vessel's Schedules</h1>
+        <div class="burger-menu" id="burger-menu">
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+        <div class="nav-links" id="nav-links">
+            <div class="toolbar grow">
+                <input id="q" type="search" placeholder="Search by vessel or port..." />
+                <button id="refresh">Refresh</button>
+            </div>
+            <div class="auth">
+                <img id="avatar" class="avatar" alt="">
+                <span id="who" class="muted"></span>
+                <button id="signoutBtn" class="btn">Sign out</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="grid">Loading...</main>
+</div>
 
 <script type="module">
+
+/* FIREBASE */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider,
+  signInWithPopup, getRedirectResult,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBrbsKzR7RkPbnMHvWdFZ-5W_FzkwoPVp4",
+  authDomain: "scheduleproject-861da.firebaseapp.com",
+  databaseURL: "https://scheduleproject-861da-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "scheduleproject-861da",
+  appId: "YOUR_REAL_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+/* DOM REFS */
+const $ = id => document.getElementById(id);
+const loginPage = $('login-page');
+const appPage = $('app-page');
+const grid = $("grid"), q = $("q");
+const signinBtn = $("signinBtn"), signoutBtn = $("signoutBtn");
+const who = $("who"), avatar = $("avatar");
+const burgerMenu = $('burger-menu');
+const navLinks = $('nav-links');
+
+burgerMenu.addEventListener('click', () => {
+    navLinks.classList.toggle('active');
+});
 
  
 function flagImg(code){
@@ -150,33 +302,6 @@ function renderFlag(code){
   return `<img src="https://static.vesselfinder.net/images/flags/4x3/${code.toLowerCase()}.svg" 
               style="height:14px;vertical-align:middle;margin-right:6px;border-radius:2px;">`;
 };
-
-
-/* FIREBASE */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import {
-  getAuth, GoogleAuthProvider,
-  signInWithPopup, getRedirectResult,
-  onAuthStateChanged, signOut
-} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBrbsKzR7RkPbnMHvWdFZ-5W_FzkwoPVp4",
-  authDomain: "scheduleproject-861da.firebaseapp.com",
-  databaseURL: "https://scheduleproject-861da-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "scheduleproject-861da",
-  appId: "YOUR_REAL_APP_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-
-/* DOM REFS */
-const $ = id => document.getElementById(id);
-const grid = $("grid"), q = $("q");
-const signinBtn = $("signinBtn"), signoutBtn = $("signoutBtn");
-const who = $("who"), avatar = $("avatar");
 
 /* UTILS */
 function getImage(v){
@@ -374,7 +499,7 @@ function flagImg(code){
 
 target.innerHTML = `
     <div class="vf-section">Navigation</div>
-    <div class="vf-row"><span>Status:</span> ${navStatus[click?.[".ns"]]||"—"}</div>
+    <div class="vf-row"><span>Status:</span> ${navStatus[click?.['.ns']]||"—"}</div>
     <div class="vf-row"><span>Speed:</span> ${click?.ss||"—"} kn</div>
     <div class="vf-row"><span>Course:</span> ${click?.cu||"—"}°</div>
     <div class="vf-row"><span>Heading:</span> ${click?.aw||"—"}°</div>
@@ -439,9 +564,13 @@ async function loadData(){
 
   const user = auth.currentUser;
   if(!user){
-    grid.innerHTML=`<div class="card"><h2>Please sign in</h2></div>`;
+    loginPage.classList.remove('hidden');
+    appPage.classList.add('hidden');
     return;
   }
+
+  loginPage.classList.add('hidden');
+  appPage.classList.remove('hidden');
 
   const token = await user.getIdToken();
   const url = firebaseConfig.databaseURL+"/ships.json?auth="+token;
@@ -500,12 +629,8 @@ onAuthStateChanged(auth,user=>{
     who.textContent=user.displayName;
     avatar.src=user.photoURL;
     avatar.style.display="inline-block";
-    signinBtn.classList.add("hidden");
-    signoutBtn.classList.remove("hidden");
     loadData();
   }else{
-    signinBtn.classList.remove("hidden");
-    signoutBtn.classList.add("hidden");
     who.textContent="";
     avatar.style.display="none";
     loadData();
